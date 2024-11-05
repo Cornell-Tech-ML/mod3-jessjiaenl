@@ -115,6 +115,7 @@ class All(Function):
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Return elem wise multiplication of t1 and t2"""
         # ASSIGN2.3
         ctx.save_for_backward(a, b)
         return a.f.mul_zip(a, b)
@@ -122,6 +123,7 @@ class Mul(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Return the gradient of product evaluaed at the inputs stored in ctx multiplied by accumulated gradient grad_output"""
         # ASSIGN2.4
         a, b = ctx.saved_values
         return (
@@ -134,6 +136,7 @@ class Mul(Function):
 class Sigmoid(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Apply sigmoid to each cell in t1"""
         # ASSIGN2.3
         out = t1.f.sigmoid_map(t1)
         ctx.save_for_backward(out)
@@ -142,6 +145,7 @@ class Sigmoid(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Return gradient of sigmoid evaluated at input stored in ctx multiplied by accumulated gradient grad_output"""
         # ASSIGN2.4
         sigma: Tensor = ctx.saved_values[0]
         return sigma * (-sigma + 1.0) * grad_output
@@ -151,6 +155,7 @@ class Sigmoid(Function):
 class ReLU(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Apply ReLU function to each cell in t1"""
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         return t1.f.relu_map(t1)
@@ -158,6 +163,7 @@ class ReLU(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Return the gradient of ReLU evaluated at input stored in ctx multiplied by accumulated gradient grad_output"""
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.relu_back_zip(a, grad_output)
@@ -167,6 +173,7 @@ class ReLU(Function):
 class Log(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Apply log function to each cell in t1"""
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         out = t1.f.log_map(t1)
@@ -175,6 +182,7 @@ class Log(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Return the gradient of log evaluated at input stored in ctx multiplied by accumulated gradient grad_output"""
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.log_back_zip(a, grad_output)
@@ -184,6 +192,7 @@ class Log(Function):
 class Exp(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Apply exponential funciton to each cell in t1"""
         # ASSIGN2.3
         out = t1.f.exp_map(t1)
         ctx.save_for_backward(out)
@@ -192,6 +201,7 @@ class Exp(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Return the gradient of exp evaluated at input stored in ctx multiplied by accumulated gradient grad_output"""
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.mul_zip(a, grad_output)
@@ -201,6 +211,7 @@ class Exp(Function):
 class LT(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Apply LT function to each cell pair in t1 and t2"""
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.lt_zip(a, b)
@@ -208,6 +219,7 @@ class LT(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Return the gradient of LT which is 0"""
         # ASSIGN2.4
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
@@ -217,6 +229,7 @@ class LT(Function):
 class EQ(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Apply EQ function to each cell pair in t1 and t2"""
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.eq_zip(a, b)
@@ -224,6 +237,7 @@ class EQ(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Return the gradient of EQ which is 0"""
         # ASSIGN2.4
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
@@ -233,6 +247,7 @@ class EQ(Function):
 class IsClose(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Apply is close function to each cell pair in t1 and t2"""
         # ASSIGN2.3
         return a.f.is_close_zip(a, b)
         # END ASSIGN2.3
@@ -241,6 +256,7 @@ class IsClose(Function):
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
+        """Permute t1 according to the reorder specified in dim"""
         # ASSIGN2.3
         ctx.save_for_backward(order)
         return a._new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))
@@ -248,6 +264,7 @@ class Permute(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Reversely permute the gradient"""
         # ASSIGN2.4
         order: Tensor = ctx.saved_values[0]
         order2: List[int] = [
