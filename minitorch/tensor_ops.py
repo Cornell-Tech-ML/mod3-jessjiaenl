@@ -284,16 +284,25 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # at each index of big, get small index, map, and store
-        for ordinal in range(len(out)):
-            out_index = np.zeros(len(out_shape), dtype=np.int32)
-            to_index(ordinal, out_shape, out_index)
+        # for ordinal in range(len(out)):
+        #     out_index = np.zeros(len(out_shape), dtype=np.int32)
+        #     to_index(ordinal, out_shape, out_index)
 
-            in_index = np.zeros(len(in_shape), dtype=np.int32)
+        #     in_index = np.zeros(len(in_shape), dtype=np.int32)
+        #     broadcast_index(out_index, out_shape, in_shape, in_index)
+
+        #     out[ordinal] = fn(in_storage[index_to_position(in_index, in_strides)])
+
+        # return
+
+        out_index = np.zeros(len(in_shape), np.int32)
+        in_index = np.zeros(len(in_shape), np.int32)
+        for i in range(len(out)):
+            to_index(i, out_shape, out_index)
             broadcast_index(out_index, out_shape, in_shape, in_index)
-
-            out[ordinal] = fn(in_storage[index_to_position(in_index, in_strides)])
-
-        return
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(in_index, in_strides)
+            out[o] = fn(in_storage[j])
 
     return _map
 
@@ -340,21 +349,33 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # at each index of big (out), get small (a b) index, zip, and store
-        for ordinal in range(len(out)):
-            out_index = np.zeros(len(out_shape), dtype=np.int32)
-            to_index(ordinal, out_shape, out_index)
+        # for ordinal in range(len(out)):
+        #     out_index = np.zeros(len(out_shape), dtype=np.int32)
+        #     to_index(ordinal, out_shape, out_index)
 
-            a_index = np.zeros(len(a_shape), dtype=np.int32)
+        #     a_index = np.zeros(len(a_shape), dtype=np.int32)
+        #     broadcast_index(out_index, out_shape, a_shape, a_index)
+        #     b_index = np.zeros(len(b_shape), dtype=np.int32)
+        #     broadcast_index(out_index, out_shape, b_shape, b_index)
+
+        #     out[ordinal] = fn(
+        #         a_storage[index_to_position(a_index, a_strides)],
+        #         b_storage[index_to_position(b_index, b_strides)],
+        #     )
+
+        # return
+
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+        a_index = np.zeros(len(a_shape), dtype=np.int32)
+        b_index = np.zeros(len(b_shape), dtype=np.int32)
+        for i in range(len(out)):
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
             broadcast_index(out_index, out_shape, a_shape, a_index)
-            b_index = np.zeros(len(b_shape), dtype=np.int32)
+            j = index_to_position(a_index, a_strides)
             broadcast_index(out_index, out_shape, b_shape, b_index)
-
-            out[ordinal] = fn(
-                a_storage[index_to_position(a_index, a_strides)],
-                b_storage[index_to_position(b_index, b_strides)],
-            )
-
-        return
+            k = index_to_position(b_index, b_strides)
+            out[o] = fn(a_storage[j], b_storage[k])
 
     return _zip
 
@@ -389,18 +410,28 @@ def tensor_reduce(
         # for each cell in out, we reduce the group of a_shape[reduce_dim] cells into one value, store it
 
         # so we go through all cells in a
-        for i in range(len(a_storage)):
-            a_index = np.zeros(len(a_shape), dtype=np.int32)
-            to_index(i, a_shape, a_index)
-            # identify which group it belongs (i.e. broadcast the index)
-            out_index = np.zeros(len(out_shape), dtype=np.int32)
-            broadcast_index(a_index, a_shape, out_shape, out_index)
-            # update out val by fn(old, it)
-            out[index_to_position(out_index, out_strides)] = fn(
-                out[index_to_position(out_index, out_strides)], a_storage[i]
-            )
+        # for i in range(len(a_storage)):
+        #     a_index = np.zeros(len(a_shape), dtype=np.int32)
+        #     to_index(i, a_shape, a_index)
+        #     # identify which group it belongs (i.e. broadcast the index)
+        #     out_index = np.zeros(len(out_shape), dtype=np.int32)
+        #     broadcast_index(a_index, a_shape, out_shape, out_index)
+        #     # update out val by fn(old, it)
+        #     out[index_to_position(out_index, out_strides)] = fn(
+        #         out[index_to_position(out_index, out_strides)], a_storage[i]
+        #     )
 
-        return
+        # return
+
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+        reduce_size = a_shape[reduce_dim]
+        for i in range(len(out)):
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            for s in range(reduce_size):
+                out_index[reduce_dim] = s
+                j = index_to_position(out_index, a_strides)
+                out[o] = fn(out[o], a_storage[j])
 
     return _reduce
 

@@ -111,6 +111,7 @@ class All(Function):
         # else:
         #     return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
+
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
@@ -129,6 +130,7 @@ class Mul(Function):
         )
         # END ASSIGN2.4
 
+
 class Sigmoid(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
@@ -145,6 +147,7 @@ class Sigmoid(Function):
         return sigma * (-sigma + 1.0) * grad_output
         # END ASSIGN2.4
 
+
 class ReLU(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
@@ -159,6 +162,7 @@ class ReLU(Function):
         (a,) = ctx.saved_values
         return grad_output.f.relu_back_zip(a, grad_output)
         # END ASSIGN2.4
+
 
 class Log(Function):
     @staticmethod
@@ -176,6 +180,7 @@ class Log(Function):
         return grad_output.f.log_back_zip(a, grad_output)
         # END ASSIGN2.4
 
+
 class Exp(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
@@ -192,6 +197,7 @@ class Exp(Function):
         return grad_output.f.mul_zip(a, grad_output)
         # END ASSIGN2.4
 
+
 class LT(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
@@ -206,6 +212,7 @@ class LT(Function):
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
         # END ASSIGN2.4
+
 
 class EQ(Function):
     @staticmethod
@@ -222,6 +229,7 @@ class EQ(Function):
         return zeros(a_shape), zeros(b_shape)
         # END ASSIGN2.4
 
+
 class IsClose(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
@@ -229,12 +237,13 @@ class IsClose(Function):
         return a.f.is_close_zip(a, b)
         # END ASSIGN2.3
 
+
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
         # ASSIGN2.3
         ctx.save_for_backward(order)
-        return a.new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))
+        return a._new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))
         # END ASSIGN2.3
 
     @staticmethod
@@ -242,7 +251,8 @@ class Permute(Function):
         # ASSIGN2.4
         order: Tensor = ctx.saved_values[0]
         order2: List[int] = [
-            a[0] for a in sorted(
+            a[0]
+            for a in sorted(
                 enumerate([order[i] for i in range(order.size)]), key=lambda a: a[1]
             )
         ]
