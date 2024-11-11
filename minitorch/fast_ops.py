@@ -176,8 +176,8 @@ def tensor_map(
                 out[i] = fn(in_storage[i])
         else:
             for i in prange(len(out)):
-                out_index = np.zeros_like(out_strides, np.int32)
-                in_index = np.zeros_like(in_strides, np.int32)
+                out_index = np.zeros_like(out_shape, np.int32)
+                in_index = np.zeros_like(in_shape, np.int32)
                 # out_index = np.zeros(len(in_shape), np.int32)
                 # in_index = np.zeros(len(in_shape), np.int32)
                 to_index(i, out_shape, out_index)
@@ -222,34 +222,25 @@ def tensor_zip(
         b_storage: Storage,
         b_shape: Shape,
         b_strides: Strides,
-    ) -> None:
-        for i in prange(len(out)):
-            out_index = np.zeros(len(out_shape), dtype=np.int32)
-            a_index = np.zeros(len(a_shape), dtype=np.int32)
-            b_index = np.zeros(len(b_shape), dtype=np.int32)
-            to_index(i, out_shape, out_index)
-            o = index_to_position(out_index, out_strides)
-            broadcast_index(out_index, out_shape, a_shape, a_index)
-            j = index_to_position(a_index, a_strides)
-            broadcast_index(out_index, out_shape, b_shape, b_index)
-            k = index_to_position(b_index, b_strides)
-            out[o] = fn(a_storage[j], b_storage[k])
-        
-        # if out_strides == a_strides and a_strides == b_strides and out_shape == a_shape and a_shape == b_shape:
-        #     for i in prange(len(out)):
-        #         out[o] = fn(a_storage[o], b_storage[o])
-        # else:
-        #     for i in prange(len(out)):
-        #         out_index = np.zeros(len(out_shape), dtype=np.int32)
-        #         a_index = np.zeros(len(a_shape), dtype=np.int32)
-        #         b_index = np.zeros(len(b_shape), dtype=np.int32)
-        #         to_index(i, out_shape, out_index)
-        #         o = index_to_position(out_index, out_strides)
-        #         broadcast_index(out_index, out_shape, a_shape, a_index)
-        #         j = index_to_position(a_index, a_strides)
-        #         broadcast_index(out_index, out_shape, b_shape, b_index)
-        #         k = index_to_position(b_index, b_strides)
-        #         out[o] = fn(a_storage[j], b_storage[k])
+    ) -> None:        
+        if np.array_equal(a_strides, out_strides) and np.array_equal(a_shape, out_shape) and np.array_equal(a_strides, b_strides) and np.array_equal(a_shape, b_shape):
+            for i in prange(len(out)):
+                out[i] = fn(a_storage[i], b_storage[i])
+        else:
+            for i in prange(len(out)):
+                # out_index = np.zeros(len(out_shape), dtype=np.int32)
+                # a_index = np.zeros(len(a_shape), dtype=np.int32)
+                # b_index = np.zeros(len(b_shape), dtype=np.int32)
+                out_index = np.zeros_like(out_shape, np.int32)
+                a_index = np.zeros_like(a_shape, np.int32)
+                b_index = np.zeros_like(b_shape, np.int32)
+                to_index(i, out_shape, out_index)
+                o = index_to_position(out_index, out_strides)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                j = index_to_position(a_index, a_strides)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                k = index_to_position(b_index, b_strides)
+                out[o] = fn(a_storage[j], b_storage[k])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -284,17 +275,29 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        reduce_size = a_shape[reduce_dim]
+        reduce_size = a_shape[reduce_dim] # size of the group that's gonna be reduced to one val
+
         for i in prange(len(out)):
+            # for each output cell, loop through the corres group that's being reduced to a val stored in that cell
             out_index = np.zeros(len(out_shape), dtype=np.int32)
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
-            # temp = out[o]
+
+            # check below for explanation
+            j = index_to_position(out_index, a_strides)
+            # temp = out[o] ?
             for s in range(reduce_size):
-                out_index[reduce_dim] = s
-                j = index_to_position(out_index, a_strides)
-                out[o] = fn(out[o], a_storage[j])
-            # out[o] = temp
+                # increment the index at the dim to be reduced to get an imaginary index
+                # cuz in reality out_index[reduce_dim] should not exceed 0
+                # note that increment this index increments j by a_strides[reduce_dim]
+                # so get the first j and then continue with j + s*a_strides[reduce_dim]
+
+                # out_index[reduce_dim] = s
+                # j = index_to_position(out_index, a_strides)
+                out[o] = fn(out[o], a_storage[j + s * a_strides[reduce_dim]])
+            # out[o] = temp ?
+
+ 
 
     return njit(_reduce, parallel=True)  # type: ignore
 
