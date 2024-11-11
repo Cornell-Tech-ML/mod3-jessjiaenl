@@ -279,13 +279,14 @@ def tensor_reduce(
 
         for i in prange(len(out)):
             # for each output cell, loop through the corres group that's being reduced to a val stored in that cell
-            out_index = np.zeros(len(out_shape), dtype=np.int32)
+            # out_index = np.zeros(len(out_shape), dtype=np.int32)
+            out_index = np.zeros_like(out_shape, np.int32)
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
 
             # check below for explanation
             j = index_to_position(out_index, a_strides)
-            # temp = out[o] ?
+            temp = out[o]
             for s in range(reduce_size):
                 # increment the index at the dim to be reduced to get an imaginary index
                 # cuz in reality out_index[reduce_dim] should not exceed 0
@@ -294,8 +295,8 @@ def tensor_reduce(
 
                 # out_index[reduce_dim] = s
                 # j = index_to_position(out_index, a_strides)
-                out[o] = fn(out[o], a_storage[j + s * a_strides[reduce_dim]])
-            # out[o] = temp ?
+                temp = fn(temp, a_storage[j + s * a_strides[reduce_dim]])
+            out[o] = temp
 
  
 
