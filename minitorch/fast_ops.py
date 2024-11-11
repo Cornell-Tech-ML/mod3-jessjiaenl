@@ -8,6 +8,7 @@ from numba import njit as _njit
 from numba import prange
 
 from .tensor_data import (
+    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
@@ -169,16 +170,21 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: avoid indexing
-
-        for i in prange(len(out)):
-            out_index = np.zeros(len(in_shape), np.int32)
-            in_index = np.zeros(len(in_shape), np.int32)
-            to_index(i, out_shape, out_index)
-            broadcast_index(out_index, out_shape, in_shape, in_index)
-            o = index_to_position(out_index, out_strides)
-            j = index_to_position(in_index, in_strides)
-            out[o] = fn(in_storage[j])
+        # in_strides == out_strides return array of true/false
+        if np.array_equal(in_strides, out_strides) and np.array_equal(in_shape, out_shape):
+            for i in prange(len(out)):
+                out[i] = fn(in_storage[i])
+        else:
+            for i in prange(len(out)):
+                out_index = np.zeros_like(out_strides, np.int32)
+                in_index = np.zeros_like(in_strides, np.int32)
+                # out_index = np.zeros(len(in_shape), np.int32)
+                # in_index = np.zeros(len(in_shape), np.int32)
+                to_index(i, out_shape, out_index)
+                broadcast_index(out_index, out_shape, in_shape, in_index)
+                o = index_to_position(out_index, out_strides)
+                j = index_to_position(in_index, in_strides)
+                out[o] = fn(in_storage[j])
 
     return njit(_map, parallel=True)  # type: ignore
 
