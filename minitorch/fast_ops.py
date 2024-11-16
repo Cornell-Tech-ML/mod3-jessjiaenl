@@ -8,7 +8,6 @@ from numba import njit as _njit
 from numba import prange
 
 from .tensor_data import (
-    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
@@ -171,7 +170,9 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # in_strides == out_strides return array of true/false
-        if np.array_equal(in_strides, out_strides) and np.array_equal(in_shape, out_shape):
+        if np.array_equal(in_strides, out_strides) and np.array_equal(
+            in_shape, out_shape
+        ):
             for i in prange(len(out)):
                 out[i] = fn(in_storage[i])
         else:
@@ -222,8 +223,13 @@ def tensor_zip(
         b_storage: Storage,
         b_shape: Shape,
         b_strides: Strides,
-    ) -> None:        
-        if np.array_equal(a_strides, out_strides) and np.array_equal(a_shape, out_shape) and np.array_equal(a_strides, b_strides) and np.array_equal(a_shape, b_shape):
+    ) -> None:
+        if (
+            np.array_equal(a_strides, out_strides)
+            and np.array_equal(a_shape, out_shape)
+            and np.array_equal(a_strides, b_strides)
+            and np.array_equal(a_shape, b_shape)
+        ):
             for i in prange(len(out)):
                 out[i] = fn(a_storage[i], b_storage[i])
         else:
@@ -275,11 +281,14 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        reduce_size = a_shape[reduce_dim] # size of the group that's gonna be reduced to one val
+        reduce_size = a_shape[
+            reduce_dim
+        ]  # size of the group that's gonna be reduced to one val
 
         for i in prange(len(out)):
             # for each output cell, loop through the corres group that's being reduced to a val stored in that cell
             # out_index = np.zeros(len(out_shape), dtype=np.int32)
+            # out_index = np.empty(len(out_shape), dtype=np.int32)
             out_index = np.zeros_like(out_shape, np.int32)
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
@@ -295,10 +304,8 @@ def tensor_reduce(
 
                 # out_index[reduce_dim] = s
                 # j = index_to_position(out_index, a_strides)
-                temp = fn(temp, a_storage[j + s * a_strides[reduce_dim]])
+                temp = fn(temp, float(a_storage[j + s * a_strides[reduce_dim]]))
             out[o] = temp
-
- 
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -363,15 +370,22 @@ def _tensor_matrix_multiply(
     Our case: A[][][][k] * B[][][k][]
 
     """
-    for i in prange(a_shape[-2]): # ?
-        for j in prange(b_shape[-1]): # ?
-            sum = 0
-            for k in prange(a_shape[-1]): # a_shape[-1] = b_shape[-2]
-                sum += a_storage[i*a_strides[-2] + k*a_strides[-1]] * b_storage[k*b_strides[-2] + j*b_strides[-1]]
-            
-            o = i*out_strides[-2] + j*out_strides[-1]
-            out[o] = sum # what about earlier dimensions?
-                
+    for n in prange(out_shape[0]):
+        for i in prange(a_shape[-2]):  # ?
+            for j in prange(b_shape[-1]):  # ?
+                sum = 0
+                for k in prange(a_shape[-1]):  # a_shape[-1] = b_shape[-2]
+                    sum += (
+                        a_storage[
+                            n * a_batch_stride + i * a_strides[-2] + k * a_strides[-1]
+                        ]
+                        * b_storage[
+                            n * b_batch_stride + k * b_strides[-2] + j * b_strides[-1]
+                        ]
+                    )
+
+                o = n * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
+                out[o] = sum
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
