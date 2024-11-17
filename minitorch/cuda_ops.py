@@ -291,7 +291,7 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     if i < size:
         pow = 1
         while pow < BLOCK_DIM:
-            if pos % (2 * pow) == 0:
+            if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
                 # 1st round: pos 0 += pos 1, pos 2 += pos 3, ...
                 # 2nd round: pos 0 += pos 2, pos 4 += pos 6
                 # 3rd round: pos 0 += pos 4
@@ -343,7 +343,7 @@ def tensor_reduce(
         reduce_dim: int,
         reduce_value: float,
     ) -> None:
-        BLOCK_DIM = 1024
+        BLOCK_DIM = 1024 # how many threads in a block
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x
@@ -365,7 +365,7 @@ def tensor_reduce(
 
                 pow = 1
                 while pow < BLOCK_DIM:
-                    if pos % (2 * pow) == 0:
+                    if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
                         cache[pos] = fn(cache[pos], cache[pos + pow])
                     cuda.syncthreads()
                     pow *= 2
