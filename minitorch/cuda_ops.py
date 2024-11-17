@@ -29,12 +29,12 @@ FakeCUDAKernel = Any
 Fn = TypeVar("Fn")
 
 
-def device_jit(fn: Fn, **kwargs) -> Fn:
+def device_jit(fn: Fn, **kwargs: Any) -> Fn:
     """Set jit decice optional arg to True"""
     return _jit(device=True, **kwargs)(fn)  # type: ignore
 
 
-def jit(fn: Fn, **kwargs) -> FakeCUDAKernel:
+def jit(fn: Fn, **kwargs: Any) -> FakeCUDAKernel:
     """Jit the function fn"""
     return _jit(**kwargs)(fn)  # type: ignore
 
