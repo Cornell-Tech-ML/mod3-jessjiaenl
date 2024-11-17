@@ -352,8 +352,9 @@ def tensor_reduce(
 
         # TODO: Implement for Task 3.3.
         """
-        for each out col, do reduce rows
-        for each reduce row, make threads do it
+        Imagine doing reduce row on a 2D matrix:
+        each out cell represent a col in a
+        for each col in a, make the threads do something like sum practice
         """
 
         cache[pos] = reduce_value
@@ -361,11 +362,13 @@ def tensor_reduce(
 
         if out_pos < out_size:
             to_index(out_pos, out_shape, out_index) # convert block id to 
-            o = index_to_position(out_index, out_strides) # convert that to storage position
-            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos # cuda.threadIdx.x # out_index[reduce_dim] was block id
-            j = index_to_position(out_index, a_strides)
+            # o = index_to_position(out_index, out_strides) # out_storage[o] = out[col]
 
-            if out_index[reduce_dim] < a_shape[reduce_dim]:
+            # increase the index at the dim to be reduced to get an imaginary index to index into a
+            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos # now out_index[reduce_dim] = row index
+            j = index_to_position(out_index, a_strides) # a_storage[j] = a[row][col]
+
+            if out_index[reduce_dim] < a_shape[reduce_dim]: # row < len(matrix)
                 cache[pos] = a_storage[j]
                 cuda.syncthreads()
 
@@ -377,7 +380,7 @@ def tensor_reduce(
                     pow *= 2
 
             if pos == 0:
-                out[o] = cache[0]
+                out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
