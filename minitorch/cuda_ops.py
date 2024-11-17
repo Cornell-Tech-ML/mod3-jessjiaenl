@@ -289,16 +289,18 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
         cache[pos] = a[i]
     cuda.syncthreads()
 
-    if i < size:
-        pow = 1
-        while pow < BLOCK_DIM:
-            if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
-                # 1st round: pos 0 += pos 1, pos 2 += pos 3, ...
-                # 2nd round: pos 0 += pos 2, pos 4 += pos 6
-                # 3rd round: pos 0 += pos 4
-                cache[pos] += cache[pos + pow]
-            cuda.syncthreads()
-            pow *= 2
+    # if i < size:
+    pow = 1
+    while pow < BLOCK_DIM:
+        if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
+            # 1st round: pos 0 += pos 1, pos 2 += pos 3, ...
+            # 2nd round: pos 0 += pos 2, pos 4 += pos 6
+            # 3rd round: pos 0 += pos 4
+            cache[pos] += cache[pos + pow]
+        cuda.syncthreads()
+        pow *= 2
+    
+    # final reduce val is stored in first cache block
     if pos == 0:
         out[block_i] = cache[0]
 
@@ -357,21 +359,24 @@ def tensor_reduce(
         for each col in a, make the threads do something like sum practice
         """
 
+        # init cache vals
         cache[pos] = reduce_value
         # one cache block for each thread
-
-        if out_pos < out_size:
-            to_index(out_pos, out_shape, out_index) # convert block id to 
-            # o = index_to_position(out_index, out_strides) # out_storage[o] = out[col]
+        
+        if out_pos < out_size: # for each cell in out i.e. each col in a
+            to_index(out_pos, out_shape, out_index) # out_storage[out_pos] = out_storage[o] = out[col]
 
             # increase the index at the dim to be reduced to get an imaginary index to index into a
             out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos # now out_index[reduce_dim] = row index
             j = index_to_position(out_index, a_strides) # a_storage[j] = a[row][col]
 
+            # copy the rows of this col into cache
             if out_index[reduce_dim] < a_shape[reduce_dim]: # row < len(matrix)
                 cache[pos] = a_storage[j]
-                cuda.syncthreads()
+            cuda.syncthreads()
 
+            
+            if out_index[reduce_dim] < a_shape[reduce_dim]: # row < len(matrix)
                 pow = 1
                 while pow < BLOCK_DIM:
                     if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
