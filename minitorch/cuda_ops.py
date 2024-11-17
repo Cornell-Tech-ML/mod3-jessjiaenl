@@ -387,7 +387,7 @@ def tensor_reduce(
                     pow *= 2
             # store reduced value at out[out_pos] = out[block_id] = out[col]
             if pos == 0:
-                out[o] = cache[0]
+                out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
