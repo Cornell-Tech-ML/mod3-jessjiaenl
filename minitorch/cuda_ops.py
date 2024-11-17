@@ -366,6 +366,7 @@ def tensor_reduce(
         
         if out_pos < out_size: # for each cell in out i.e. each col in a
             to_index(out_pos, out_shape, out_index) # out_storage[out_pos] = out_storage[o] = out[col]
+            o = index_to_position(out_index, out_strides)
 
             # increase the index at the dim to be reduced to get an imaginary index to index into a
             out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos # now out_index[reduce_dim] = row index
@@ -386,7 +387,7 @@ def tensor_reduce(
                     pow *= 2
             # store reduced value at out[out_pos] = out[block_id] = out[col]
             if pos == 0:
-                out[out_pos] = cache[0]
+                out[o] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
