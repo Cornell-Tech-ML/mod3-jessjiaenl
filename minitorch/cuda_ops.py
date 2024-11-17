@@ -289,20 +289,20 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
         cache[pos] = a[i]
     cuda.syncthreads()
 
-    # if i < size:
-    pow = 1
-    while pow < BLOCK_DIM:
-        if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
-            # 1st round: pos 0 += pos 1, pos 2 += pos 3, ...
-            # 2nd round: pos 0 += pos 2, pos 4 += pos 6
-            # 3rd round: pos 0 += pos 4
-            cache[pos] += cache[pos + pow]
-        cuda.syncthreads()
-        pow *= 2
-    
-    # final reduce val is stored in first cache block
-    if pos == 0:
-        out[block_i] = cache[0]
+    if i < size: # check this so that block_i < out_size is implied
+        pow = 1
+        while pow < BLOCK_DIM:
+            if pos % (2 * pow) == 0 and pos + pow < BLOCK_DIM:
+                # 1st round: pos 0 += pos 1, pos 2 += pos 3, ...
+                # 2nd round: pos 0 += pos 2, pos 4 += pos 6
+                # 3rd round: pos 0 += pos 4
+                cache[pos] += cache[pos + pow]
+            cuda.syncthreads()
+            pow *= 2
+        
+        # final reduce val is stored in first cache block
+        if pos == 0:
+            out[block_i] = cache[0]
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
@@ -357,6 +357,7 @@ def tensor_reduce(
         Imagine doing reduce row on a 2D matrix:
         each out cell represent a col in a
         for each col in a, make the threads do something like sum practice
+        we use one block for each col => out[block_id] = out[col] = reduced val for that col
         """
 
         # init cache vals
@@ -375,7 +376,7 @@ def tensor_reduce(
                 cache[pos] = a_storage[j]
             cuda.syncthreads()
 
-            
+            # do reduce over rows of that col
             if out_index[reduce_dim] < a_shape[reduce_dim]: # row < len(matrix)
                 pow = 1
                 while pow < BLOCK_DIM:
@@ -383,7 +384,7 @@ def tensor_reduce(
                         cache[pos] = fn(cache[pos], cache[pos + pow])
                     cuda.syncthreads()
                     pow *= 2
-
+            # store reduced value at out[out_pos] = out[block_id] = out[col]
             if pos == 0:
                 out[out_pos] = cache[0]
 
