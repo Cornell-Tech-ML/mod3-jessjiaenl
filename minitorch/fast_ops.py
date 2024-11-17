@@ -30,6 +30,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Njits the function with inline set as always"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
