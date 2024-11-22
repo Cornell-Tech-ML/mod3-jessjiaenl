@@ -441,18 +441,27 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     local_i = cuda.threadIdx.x
     local_j = cuda.threadIdx.y
 
-    acc = 0
+    acc = 0  # initialize local var to store out[i,j]
+    # we want to loop through the shared dimension k (inner loop in the above comment)
+    # but since we compute a block at a time, we loop through that by stepping an offset k, k+BLOCK_DIM, k+2*BLOCK_DIM and then loop through each block by k + local_i or local_j
     for k in range(0, size, BLOCK_DIM):
+        # for this k, we have multiple blocks, collectively the shared memories across these blocks hold:
+        # a[i, k:k+BLOCK_DIM] and b[k:k+BLOCK_DIM, j]
+        # note that each block holds a a_shared of shape (BLOCK_DIM, BLOCK_DIM) and a b_shared of shape (BLOCK_DIM, BLOCK_DIM)
+        # just that for all shared memories for this k they cover the values a[i, k:k+BLOCK_DIM] and b[k:k+BLOCK_DIM, j]
         if i < size and k + local_j < size:
             a_shared[local_i, local_j] = a[i * size + k + local_j]
         if j < size and k + local_i < size:
             b_shared[local_i, local_j] = b[(k + local_i) * size + j]
         cuda.syncthreads()
 
+        # now we are able to accumulate to out[i, j] by computing a dot product between BLOCK_DIM len vectors
+        # we essentially partitioned a whole row of a and a whole col of b into BLOCK_DIM size sub vectors, dot each subvector, and add to accumulation
         for local_k in range(BLOCK_DIM):
             if k + local_k < size:
                 acc += a_shared[local_i, local_k] * b_shared[local_k, local_j]
 
+    # after we completely go through the whole row of a and whole col of b (i.e. all "k"), we finish the accumulation of out[i,j]
     if i < size and j < size:
         out[i * size + j] = acc
 
@@ -527,7 +536,7 @@ def _tensor_matrix_multiply(
     acc = 0  # for computing the dot produce for position c[i, j]
     for k in range(
         0, a_shape[-1], BLOCK_DIM
-    ):  # Move across shared dimension by block dim
+    ):  # Move across shared dimension by block dim size of steps, and take smaller steps within using pi pj in order to move a block of a/b into shared memeory at a time
         if (
             i < a_shape[-2] and k + pj < a_shape[-1]
         ):  # Copy into shared memory for a matrix
@@ -542,12 +551,12 @@ def _tensor_matrix_multiply(
             ]
         cuda.syncthreads()
 
-        # Compute the dot produce for position c[i, j]
+        # Accumulate to c[i, j] by computing a partial dot product on a subvector of a of len BLOCK_DIM and a subvector of b of len BLOCK_DIM
         for pk in range(BLOCK_DIM):
             if k + pk < a_shape[-1]:  # a_shape[-1] == b_shape[-2]
                 acc += a_shared[pi, pk] * b_shared[pk, pj]
 
-    # Store the computed dot produce for position c[i, j]
+    # Now we've accumulated all partitions of a row in a and a col in b, can store the computed dot produce for position c[i, j] (skipping previous dims with batch * out_strides[0])
     if i < a_shape[-2] and j < b_shape[-1]:
         out[batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]] = acc
 
